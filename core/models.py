@@ -1,26 +1,11 @@
-# django-orm
-Django ORM
+from django.db import models
+from django.contrib.auth.models import User
 
-## To start from scratch, clone the project at main branch
-Open cmd  
-`cd \django-orm`  
-`python -m venv venv`  
-`venv\Scripts\activate`  
-`pip install -r requirements.txt`  
-`django-admin startproject orm_series .`  
-`python maange.py startapp core`  
+# Restaurant
+# User
+# Rating
+# Sale
 
-Adding app to **INSTALLED_APPS**
-```
-INSTALLED_APPS = [
-    ...,
-    'django_extensions',
-    'core',
-]
-```  
-
-Create models (Restaurant, Rating, Sale)
-```
 class Restaurant(models.Model):
     class TypeChoices(models.TextChoices):
         INDIAN = 'IN', 'Indian'
@@ -55,21 +40,5 @@ class Sale(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True)
     income = models.DecimalField(max_digits=8, decimal_places=2)
     datetime = models.DateTimeField()
-```  
-
-Register models to admin sites - file admin.py
-```
-from core.models import Restaurant, Rating, Sale
-
-# Register your models here.
-admin.site.register(Restaurant)
-admin.site.register(Rating)
-admin.site.register(Sale)
-```  
-Migrations  
-`python manage.py makemigrations`  
-`python manage.py migrate`  
-
-Create superuse
-`python manage.py createsuperuse`  
+    
 
