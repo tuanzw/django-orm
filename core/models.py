@@ -20,7 +20,7 @@ class Restaurant(models.Model):
     website = models.URLField(default='')
     date_opened = models.DateField()
     latitude = models.FloatField()
-    longitue = models.FloatField()
+    longitude = models.FloatField()
     restaurant_type = models.CharField(max_length=2, choices=TypeChoices.choices, default=TypeChoices.OTHER)
 
     def __str__(self):
@@ -28,8 +28,8 @@ class Restaurant(models.Model):
     
 
 class Rating(models.Model):
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="restaurants")
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="users")
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="ratings")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ratings")
     rating = models.PositiveSmallIntegerField()
 
     def __str__(self):
@@ -37,7 +37,7 @@ class Rating(models.Model):
     
 
 class Sale(models.Model):
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True)
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True, related_name="sales")
     income = models.DecimalField(max_digits=8, decimal_places=2)
     datetime = models.DateTimeField()
     
