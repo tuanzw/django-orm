@@ -6,15 +6,16 @@ from django.db import connection
 from pprint import pprint
 
 def run():
-    user = User.objects.first()
-    restaurant = Restaurant.objects.first()
+    user = User.objects.last()
+    restaurant = Restaurant.objects.last()
     
-    rating, created = Rating.objects.get_or_create(
+    rating = Rating(
         restaurant=restaurant,
         user=user,
-        rating=4
+        rating=9
     )
 
-    if created:
-        print("Rating {rating} added!")
+    # rating.full_clean() # model validation is not run on save by default
+    rating.save()
+
     pprint(connection.queries)

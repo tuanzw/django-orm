@@ -229,6 +229,150 @@ def run():
     pprint(connection.queries)
 ```  
 
+## 03. Model Field Validators/Custom Validators
+>https://docs.djangoproject.com/en/6.0/ref/validators/  
+>validators will not be run automatically when you save a model
+>https://docs.djangoproject.com/en/6.0/topics/forms/modelforms/#validation-on-a-modelform
+>https://docs.djangoproject.com/en/6.0/ref/models/instances/#validating-objects  
+>When you use a ModelForm, the call to is_valid() will perform these validation steps for all the fields that are included on the form  
+>You should only need to call a **model’s full_clean()** method if you plan to handle validation errors yourself, or if you have excluded fields from the ModelForm that require validation.
+
+Add MinValueValidator, MaxValueValidator to Rating model  
+```
+from django.core.validators import MinValueValidator, MaxValueValidator
+.....
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+```  
+```
+def run():
+    user = User.objects.last()
+    restaurant = Restaurant.objects.last()
+    
+    rating = Rating(
+        restaurant=restaurant,
+        user=user,
+        rating=9
+    )
+
+    rating.full_clean() # model validation is not run on save by default
+    rating.save()
+
+    pprint(connection.queries)
+```  
+
+Using ModelForm & calling is_valid to perform the validators
+Create forms.py under app folder  
+```
+from django.forms import ModelForm
+from core.models import Rating
+
+class RatingForm(ModelForm):
+    class Meta:
+        model = Rating
+        fields = ['restaurant', 'user', 'rating']
+```  
+Adding logic to handle the request to views.py  
+```
+from django.shortcuts import render
+from .forms import RatingForm
+
+# Create your views here.
+def index(request):
+    if request.method == 'POST':
+        form = RatingForm(request.POST)
+        if form.is_valid():
+            form.save()
+        else:
+            return render(request, 'index.html', {'form': form})
+    context = {'form': RatingForm()}
+    return render(request, 'index.html', context)
+```  
+Create urls.py under app folder  
+```
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+]
+```  
+Create templates folder under app folder  
+Create templates/base.html file  
+```
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Django ORM Example</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+</head>
+
+<body>
+    <div class="container mt-4">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+
+</html>
+```  
+Create templates/index.html file  
+```{% extends 'base.html' %}
+
+{% block content %}
+<h1>Submit a Rating</h1>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">Submit</button>
+</form>
+{% endblock %}
+```  
+`pip install jinja2` for using Jinja template  
+
+Adding url part of the app to the project urls.py  
+```
+    path('', include('core.urls')),
+```  
+Start server and the form will validate out of range of rating while submitting.  
+
+Adding validation at database level  
+```
+from django.db.models import Q, CheckConstraint
+.....
+
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                condition=Q(rating__gte=1) & Q(rating__lte=5),
+                name='rating_range_1_and_5_check'
+            )
+        ]
+```  
+```
+CREATE TABLE "core_rating" (
+  "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
+  "rating" smallint unsigned NOT NULL CHECK ("rating" >= 0), 
+  "user_id" integer NOT NULL REFERENCES "auth_user" ("id") DEFERRABLE INITIALLY DEFERRED, 
+  "restaurant_id" bigint NOT NULL REFERENCES "core_restaurant" ("id") DEFERRABLE INITIALLY DEFERRED, 
+  CONSTRAINT "rating_range_1_and_5_check" CHECK (
+    (
+      "rating" >= 1 
+      AND "rating" <= 5
+    )
+  )
+)
+```  
+>django.db.utils.IntegrityError: CHECK constraint failed: rating_range_1_and_5_check  
+Validator can be at Model, ModelForm, database.  
+Custom validator can be passed to validators field example validators=[check_something]
+
 
 
 

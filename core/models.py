@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Q, CheckConstraint
 
 # Restaurant
 # User
@@ -30,7 +32,18 @@ class Restaurant(models.Model):
 class Rating(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="ratings")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ratings")
-    rating = models.PositiveSmallIntegerField()
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+
+    class Meta:
+        managed = True
+        constraints = [
+            CheckConstraint(
+                condition=Q(rating__gte=1) & Q(rating__lte=5),
+                name='rating_range_1_and_5_check'
+            )
+        ]
 
     def __str__(self):
         return f"Rating: {self.rating}"
