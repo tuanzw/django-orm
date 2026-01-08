@@ -373,6 +373,182 @@ CREATE TABLE "core_rating" (
 Validator can be at Model, ModelForm, database.  
 Custom validator can be passed to validators field example validators=[check_something]
 
+## 04. Update/Delete/on_delete behaviour/ Query Set querying & lookup  
+### Update a record  
+Example
+```
+    restaurant.name = "New name"
+    restaurant.save()
+```  
+```
+ {'sql': 'UPDATE "core_restaurant" SET "name" = \'New Indian restaurant\', '
+         '"website" = \'\', "date_opened" = \'2026-01-08\', "latitude" = 37.4, '
+         '"longitude" = 122.1, "restaurant_type" = \'IN\' WHERE '
+         '"core_restaurant"."id" = 2',
+  'time': '0.030'}]
+```  
+Checking if model is updated: https://docs.djangoproject.com/en/6.0/ref/models/instances/#state  
+The ModelState object has two attributes: adding, a flag which is True if the model has not been saved to the database yet, and db, a string referring to the database alias the 
+instance was loaded from or saved to.  
+Adding custome save() in Restaurant model
+```
+    def save(self, *args, **kwargs):
+        print(self._state.adding)
+        super().save(*args, **kwargs)
+
+```  
+Model signals: https://docs.djangoproject.com/en/6.0/ref/signals/  
+### Update records (queryset) 
+https://docs.djangoproject.com/en/6.0/topics/db/queries/#updating-multiple-objects-at-once  
+```
+    restaurants = Restaurant.objects.all()
+    restaurants.update(website='https://www.example.com')
+```  
+```
+[{'sql': 'UPDATE "core_restaurant" SET "website" = \'https://www.example.com\'',
+  'time': '0.034'}]
+```  
+Be aware that the update() method is converted directly to an SQL statement. It is a bulk operation for direct updates. It doesn’t run any save() methods on your models, or emit the pre_save or post_save signals (which are a consequence of calling save()), or honor the auto_now field option. If you want to save every item in a QuerySet and make sure that the save() method is called on each instance, you don’t need any special function to handle that. Loop over them and call save():  
+```
+    for restaurant in restaurants:
+        restaurant.save()
+```  
+```
+def run():
+    restaurants = Restaurant.objects.filter(name__startswith='P')
+    restaurants.update(
+        website='https://www.pizza-shop.com',
+        date_opened=timezone.now() - timezone.timedelta(days=365))
+
+    pprint(connection.queries)
+```  
+```
+[{'sql': 'UPDATE "core_restaurant" SET "website" = '
+         '\'https://www.pizza-shop.com\', "date_opened" = \'2025-01-08\' WHERE '
+         '"core_restaurant"."name" LIKE \'P%\' ESCAPE \'\\\'',
+  'time': '0.010'}]
+```  
+-> only 1 update statment as django is lazy loading.  
+
+### Delete  
+https://docs.djangoproject.com/en/6.0/topics/db/queries/#deleting-objects  
+The delete method, conveniently, is named delete(). This method immediately deletes the object and returns the number of objects deleted and a dictionary with the number of deletions per object type  
+```
+    restaurant = Restaurant.object.first()
+    restaurant.delete()
+```  
+You can also delete objects in bulk. Every QuerySet has a delete() method, which deletes all members of that QuerySet.
+Keep in mind that this will, whenever possible, be executed purely in SQL, and so the delete() methods of individual object instances will not necessarily be called during the process.  
+```
+    restaurants = Restaurant.object.all()
+    restaurants.delete()
+```    
+### on_delete behaviour  
+### Copying model instance  
+https://docs.djangoproject.com/en/6.0/topics/db/queries/#deleting-objects  
+set the pk to None & set _state.adding to True  
+This process doesn’t copy relations that aren’t part of the model’s database table  
+```
+def run():
+    restaurant = Restaurant.objects.last()
+    print(restaurant)
+
+    restaurant.pk = None
+    restaurant._state.adding = True
+    restaurant.save()
+
+    pprint(connection.queries)
+```  
+```
+New Indian restaurant2
+True
+[{'sql': 'SELECT "core_restaurant"."id", "core_restaurant"."name", '
+         '"core_restaurant"."website", "core_restaurant"."date_opened", '
+         '"core_restaurant"."latitude", "core_restaurant"."longitude", '
+         '"core_restaurant"."restaurant_type" FROM "core_restaurant" ORDER BY '
+         '"core_restaurant"."id" DESC LIMIT 1',
+  'time': '0.000'},
+ {'sql': 'INSERT INTO "core_restaurant" ("name", "website", "date_opened", '
+         '"latitude", "longitude", "restaurant_type") VALUES (\'New Indian '
+         "restaurant2', 'https://www.example.com', '2026-01-08', 37.4, 122.1, "
+         '\'IN\') RETURNING "core_restaurant"."id"',
+  'time': '0.003'}]
+```  
+### Lookup  
+https://docs.djangoproject.com/en/6.0/topics/db/queries/#field-lookups  
+https://docs.djangoproject.com/en/6.0/topics/db/queries/#key-index-and-path-transforms  
+Filtering records with filter() mehtod  
+```
+    restaurants = Restaurant.objects.filter(restaurant_type=Restaurant.TypeChoices.CHINESE, \
+        name__contains='c')
+```  
+```
+[{'sql': 'SELECT "core_restaurant"."id", "core_restaurant"."name", '
+         '"core_restaurant"."website", "core_restaurant"."date_opened", '
+         '"core_restaurant"."latitude", "core_restaurant"."longitude", '
+         '"core_restaurant"."restaurant_type" FROM "core_restaurant" WHERE '
+         '("core_restaurant"."name" LIKE \'%c%\' ESCAPE \'\\\' AND '
+         '"core_restaurant"."restaurant_type" = \'CH\') LIMIT 21',
+  'time': '0.000'}]
+```  
+```
+    restaurants = Restaurant.objects.filter(restaurant_type__in=[
+        Restaurant.TypeChoices.ITALIAN,
+        Restaurant.TypeChoices.CHINESE,
+        Restaurant.TypeChoices.INDIAN
+    ])
+```  
+get() to return single instance, error if there is more than 1 records  
+```
+    restaurant = Restaurant.objects.get(pk=4)
+```  
+exists()  
+exclude()  
+```
+    restaurants = Restaurant.objects.exclude(restaurant_type__in=[
+        Restaurant.TypeChoices.ITALIAN,
+        Restaurant.TypeChoices.CHINESE,
+        Restaurant.TypeChoices.INDIAN
+    ])
+```  
+```
+[{'sql': 'SELECT "core_restaurant"."id", "core_restaurant"."name", '
+         '"core_restaurant"."website", "core_restaurant"."date_opened", '
+         '"core_restaurant"."latitude", "core_restaurant"."longitude", '
+         '"core_restaurant"."restaurant_type" FROM "core_restaurant" WHERE NOT '
+         '("core_restaurant"."restaurant_type" IN (\'IT\', \'CH\', \'IN\')) '
+         'LIMIT 21',
+  'time': '0.000'}]
+```  
+Filtering QuerySets with lt & gt & lte & gte, range, 
+-> Model.objects.filter(fieldname1__lt=value, fieldname2__gt=value)  
+order_by()  
+-> Model.object.filter(....).order_by('fieldname')  (for asc)  
+-> Model.object.filter(....).order_by('-fieldname')  (for desc) 
+```
+    restaurants = Restaurant.objects.filter(restaurant_type=Restaurant.TypeChoices.MEXICAN) \
+        .order_by(Lower('name'))
+```  
+Can setup ordering in Meta class of a model  
+```
+    class Meta:
+        ordering = [Lower('name')]
+```   
+Filtering by Foreign Key  
+filter restaurants that have rating is greater than or equal to 3  
+```
+    restaurants = Restaurant.objects.filter(ratings__rating__gte=3)
+```  
+```
+[{'sql': 'SELECT "core_restaurant"."id", "core_restaurant"."name", '
+         '"core_restaurant"."website", "core_restaurant"."date_opened", '
+         '"core_restaurant"."latitude", "core_restaurant"."longitude", '
+         '"core_restaurant"."restaurant_type" FROM "core_restaurant" INNER '
+         'JOIN "core_rating" ON ("core_restaurant"."id" = '
+         '"core_rating"."restaurant_id") WHERE "core_rating"."rating" >= 3 '
+         'ORDER BY LOWER("core_restaurant"."name") ASC LIMIT 21',
+  'time': '0.000'}]
+```  
 
 
 
