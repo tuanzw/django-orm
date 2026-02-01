@@ -381,7 +381,7 @@ Example
     restaurant.save()
 ```  
 ```
- {'sql': 'UPDATE "core_restaurant" SET "name" = \'New Indian restaurant\', '
+ [{'sql': 'UPDATE "core_restaurant" SET "name" = \'New Indian restaurant\', '
          '"website" = \'\', "date_opened" = \'2026-01-08\', "latitude" = 37.4, '
          '"longitude" = 122.1, "restaurant_type" = \'IN\' WHERE '
          '"core_restaurant"."id" = 2',
@@ -549,6 +549,52 @@ filter restaurants that have rating is greater than or equal to 3
          'ORDER BY LOWER("core_restaurant"."name") ASC LIMIT 21',
   'time': '0.000'}]
 ```  
+## 05. N+1 Problem - select_related & prefetch_related  
+django-debug-toolbar https://django-debug-toolbar.readthedocs.io/en/latest/installation.html  
+`pip install django-debug-toolbar`  
+```
+INSTALLED_APPS = [
+    .....
+    'debug_toolbar',
+]
+```
+Add urls  
+```
+from django.urls import include, path
+from debug_toolbar.toolbar import debug_toolbar_urls
+
+urlpatterns = [
+    .....
+] + debug_toolbar_urls()
+```  
+Add middleware  
+```
+MIDDLEWARE = [
+    # ...
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
+    # ...
+]
+```  
+Internal IPs end of project setting  
+```
+INTERNAL_IPS = [
+    # ...
+    "127.0.0.1",
+    # ...
+]
+```  
+https://docs.djangoproject.com/en/6.0/howto/static-files/#serving-static-files-during-development  
+-> no need  
+Start the server & will see debug toolbar on the right hand side of the page  
+select_related https://docs.djangoproject.com/en/6.0/ref/models/querysets/#prefetch-related  
+prefetch_related https://docs.djangoproject.com/en/6.0/ref/models/querysets/#prefetch-related  
+select_related works by creating an SQL join and including the fields of the related object in the SELECT statement. For this reason, select_related gets the related objects in the same database query. However, to avoid the much larger result set that would result from joining across a ‘many’ relationship, select_related is limited to single-valued relationships - foreign key and one-to-one.  
+prefetch_related, on the other hand, does a separate lookup for each relationship, and does the ‘joining’ in Python. This allows it to prefetch many-to-many, many-to-one, and GenericRelation objects which cannot be done using select_related, in addition to the foreign key and one-to-one relationships that are supported by select_related. It also supports prefetching of GenericForeignKey, however, the queryset for each ContentType must be provided in the querysets parameter of GenericPrefetch.  
+```
+    restaurants = Restaurant.objects.prefetch_related('ratings')
+```  
+
+
 
 
 

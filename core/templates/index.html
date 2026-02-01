@@ -1,10 +1,19 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1>Submit a Rating</h1>
+<!-- <h1>Submit a Rating</h1>
 <form method="POST">
     {% csrf_token %}
     {{ form.as_p }}
     <button class="btn btn-primary" type="submit">Submit</button>
-</form>
+</form> -->
+
+{% for restaurant in restaurants %}
+<p>{{ restaurant.name}}</p>
+{% for rating in restaurant.ratings.all %}
+<li>{{ rating.rating }}</li>
+{% endfor %}
+
+{% endfor %}
+
 {% endblock %}
